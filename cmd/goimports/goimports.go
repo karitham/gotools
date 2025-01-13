@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -51,8 +52,26 @@ var (
 
 func init() {
 	flag.BoolVar(&options.AllErrors, "e", false, "report all errors (not just the first 10 on different lines)")
-	flag.StringVar(&options.LocalPrefix, "local", "", "put imports beginning with this string after 3rd-party packages; comma-separated list")
+	flag.StringVar(&options.LocalPrefix, "local", autolocal(), "put imports beginning with this string after 3rd-party packages; comma-separated list")
 	flag.BoolVar(&options.FormatOnly, "format-only", false, "if true, don't fix imports and only format. In this mode, goimports is effectively gofmt, with the addition that imports are grouped into sections.")
+}
+
+// autolocal returns the current module path and automatically sets local
+func autolocal() string {
+	runner := gocommand.Runner{}
+	invok := gocommand.Invocation{
+		Verb: "list",
+		Args: []string{"-m"},
+	}
+
+	v, err := runner.Run(context.Background(), invok)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error fetching local module")
+
+		return ""
+	}
+
+	return strings.TrimSpace(v.String())
 }
 
 func report(err error) {
